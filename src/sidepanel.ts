@@ -14,7 +14,6 @@ import {
 	ChatPanel,
 	createExtractDocumentTool,
 	createStreamFn,
-	ModelSelector,
 	ProxyTab,
 	SettingsDialog,
 	// PersistentStorageDialog,
@@ -27,6 +26,7 @@ import { AboutTab } from "./dialogs/AboutTab.js";
 import { ApiKeyOrOAuthDialog } from "./dialogs/ApiKeyOrOAuthDialog.js";
 import { ApiKeysOAuthTab } from "./dialogs/ApiKeysOAuthTab.js";
 import { CostsTab } from "./dialogs/CostsTab.js";
+import { OpenAICompatibleTab } from "./dialogs/OpenAICompatibleTab.js";
 import { SessionCostDialog } from "./dialogs/SessionCostDialog.js";
 import { SitegeistSessionListDialog } from "./dialogs/SessionListDialog.js";
 import { SkillsTab } from "./dialogs/SkillsTab.js";
@@ -131,9 +131,30 @@ const DEFAULT_MODELS: Record<string, string> = {
 	zai: "glm-4.6",
 };
 
+async function getFirstOpenAICompatibleModel(): Promise<Model<"openai-completions"> | undefined> {
+	const providers = await storage.customProviders.getAll();
+	for (const provider of providers) {
+		if (provider.type === "openai-completions" && provider.models?.[0]) {
+			return provider.models[0] as Model<"openai-completions">;
+		}
+	}
+	return undefined;
+}
+
 async function selectDefaultModelForAvailableProvider() {
+	if (!agent) return;
+
+	const customModel = await getFirstOpenAICompatibleModel();
+	if (customModel) {
+		agent.setModel(customModel);
+		await storage.settings.set("lastUsedModel", customModel);
+		await updateAuthLabel();
+		renderApp();
+		return;
+	}
+
 	const providers = await getProvidersWithKeys();
-	if (providers.length === 0 || !agent) return;
+	if (providers.length === 0) return;
 
 	// Try each provider with keys and find a default model
 	for (const provider of providers) {
@@ -173,18 +194,30 @@ async function getProvidersWithKeys(): Promise<string[]> {
 	return result;
 }
 
-async function hasAnyApiKey(): Promise<boolean> {
+async function hasAnyProviderConfiguration(): Promise<boolean> {
 	const providers = await storage.providerKeys.list();
-	return providers.length > 0;
+	if (providers.length > 0) return true;
+	return !!(await getFirstOpenAICompatibleModel());
 }
 
 function openApiKeysDialog(): Promise<void> {
-	return new Promise((resolve) => {
-		SettingsDialog.open(
-			[new ApiKeysOAuthTab(), new CostsTab(), new SkillsTab(), new ProxyTab(), new AboutTab()],
-			resolve,
-		);
-	});
+	return SettingsDialog.open([
+		new ApiKeysOAuthTab(),
+		new OpenAICompatibleTab(),
+		new CostsTab(),
+		new SkillsTab(),
+		new ProxyTab(),
+		new AboutTab(),
+	]);
+}
+
+async function getCustomProvider(providerName: string) {
+	const providers = await storage.customProviders.getAll();
+	return providers.find((provider) => provider.name === providerName);
+}
+
+async function getCustomProviderApiKey(providerName: string): Promise<string | undefined> {
+	return (await getCustomProvider(providerName))?.apiKey;
 }
 
 async function updateAuthLabel() {
@@ -194,7 +227,10 @@ async function updateAuthLabel() {
 	}
 	const provider = agent.state.model.provider;
 	const stored = await storage.providerKeys.get(provider);
-	if (!stored) {
+	const customApiKey = await getCustomProviderApiKey(provider);
+	if (customApiKey) {
+		authLabel = "api key";
+	} else if (!stored) {
 		authLabel = "";
 	} else if (isOAuthCredentials(stored)) {
 		authLabel = "subscription";
@@ -394,6 +430,9 @@ const createAgent = async (initialState?: Partial<AgentState>, shouldSave = true
 			return (await storage.settings.get<string>("proxy.url")) || undefined;
 		}),
 		getApiKey: async (provider: string) => {
+			const customProvider = await getCustomProvider(provider);
+			if (customProvider) return customProvider.apiKey || "not-needed";
+
 			const stored = await storage.providerKeys.get(provider);
 			if (!stored) return undefined;
 			const proxyEnabled = await storage.settings.get<boolean>("proxy.enabled");
@@ -462,24 +501,8 @@ const createAgent = async (initialState?: Partial<AgentState>, shouldSave = true
 			return chrome.runtime.getURL("sandbox.html");
 		},
 		onApiKeyRequired: async (provider: string) => {
+			if (await getCustomProvider(provider)) return true;
 			return await ApiKeyOrOAuthDialog.prompt(provider);
-		},
-		onModelSelect: async () => {
-			const providers = await getProvidersWithKeys();
-			if (providers.length === 0) {
-				openApiKeysDialog();
-				return;
-			}
-			ModelSelector.open(
-				agent.state.model,
-				(model) => {
-					agent.setModel(model);
-					chatPanel.agentInterface?.requestUpdate();
-					updateAuthLabel().catch(() => {});
-					renderApp();
-				},
-				providers,
-			);
 		},
 		onBeforeSend: async () => {
 			if (!agent) return;
@@ -703,6 +726,7 @@ const renderApp = () => {
 						onClick: () =>
 							SettingsDialog.open([
 								new ApiKeysOAuthTab(),
+								new OpenAICompatibleTab(),
 								new CostsTab(),
 								new SkillsTab(),
 								new ProxyTab(),
@@ -1036,7 +1060,7 @@ async function initApp() {
 	renderApp();
 
 	// If no API keys configured, show welcome dialog, open settings, then auto-select model
-	if (!(await hasAnyApiKey())) {
+	if (!(await hasAnyProviderConfiguration())) {
 		await WelcomeSetupDialog.show();
 		await openApiKeysDialog();
 		await selectDefaultModelForAvailableProvider();
