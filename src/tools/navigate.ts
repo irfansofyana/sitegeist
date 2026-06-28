@@ -1,10 +1,10 @@
+import type { AgentTool } from "@earendil-works/pi-agent-core";
+import type { ToolResultMessage } from "@earendil-works/pi-ai";
+import { registerToolRenderer, type ToolRenderer, type ToolRenderResult } from "@earendil-works/pi-web-ui";
 import { i18n, icon } from "@mariozechner/mini-lit";
-import type { AgentTool } from "@mariozechner/pi-agent-core";
-import type { ToolResultMessage } from "@mariozechner/pi-ai";
-import { registerToolRenderer, type ToolRenderer, type ToolRenderResult } from "@mariozechner/pi-web-ui";
-import { type Static, Type } from "@sinclair/typebox";
 import { html } from "lit";
 import { Loader2 } from "lucide";
+import { type Static, Type } from "typebox";
 import { SkillPill } from "../components/SkillPill.js";
 import { TabPill } from "../components/TabPill.js";
 import { NAVIGATE_TOOL_DESCRIPTION } from "../prompts/prompts.js";
@@ -463,7 +463,8 @@ export const navigateRenderer: ToolRenderer<NavigateParams, NavigateResult> = {
 
 		// Error state
 		if (result?.isError) {
-			const errorText = result.content.find((c) => c.type === "text")?.text || "Unknown error";
+			const errorContent = result.content.find((c) => c.type === "text");
+			const errorText = errorContent?.type === "text" ? errorContent.text : "Unknown error";
 			return {
 				content: html`
 					<div class="my-2">

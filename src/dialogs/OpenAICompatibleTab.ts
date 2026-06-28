@@ -1,8 +1,8 @@
+import type { Model } from "@earendil-works/pi-ai";
+import { type CustomProvider, getAppStorage, SettingsTab } from "@earendil-works/pi-web-ui";
 import { Button } from "@mariozechner/mini-lit/dist/Button.js";
 import { Checkbox } from "@mariozechner/mini-lit/dist/Checkbox.js";
 import { Input } from "@mariozechner/mini-lit/dist/Input.js";
-import type { Model } from "@mariozechner/pi-ai";
-import { type CustomProvider, getAppStorage, SettingsTab } from "@mariozechner/pi-web-ui";
 import { html, type TemplateResult } from "lit";
 import { Toast } from "../components/Toast.js";
 

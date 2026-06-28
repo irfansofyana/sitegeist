@@ -1,16 +1,16 @@
-import type { AgentTool } from "@mariozechner/pi-agent-core";
-import { StringEnum, type ToolResultMessage } from "@mariozechner/pi-ai";
+import type { AgentTool } from "@earendil-works/pi-agent-core";
+import { StringEnum, type ToolResultMessage } from "@earendil-works/pi-ai";
 import {
 	registerToolRenderer,
 	renderCollapsibleHeader,
 	renderHeader,
 	type ToolRenderer,
 	type ToolRenderResult,
-} from "@mariozechner/pi-web-ui";
-import { type Static, Type } from "@sinclair/typebox";
+} from "@earendil-works/pi-web-ui";
 import { html } from "lit";
 import { createRef, ref } from "lit/directives/ref.js";
 import { Bug } from "lucide";
+import { type Static, Type } from "typebox";
 
 // ============================================================================
 // TYPES
@@ -182,7 +182,8 @@ export const debuggerRenderer: ToolRenderer<DebuggerParams, DebuggerResult> = {
 
 		// With result: show params + result
 		if (result && params) {
-			const output = result.content.find((c) => c.type === "text")?.text || "";
+			const textContent = result.content.find((c) => c.type === "text");
+			const output = textContent?.type === "text" ? textContent.text : "";
 			const title = params.action === "cookies" ? "Get Cookies" : "MAIN World";
 
 			return {

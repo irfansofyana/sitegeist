@@ -6,6 +6,10 @@
 
 - OpenAI-compatible provider settings for custom base URLs, API keys, multiple model IDs, token limits, costs, and capabilities.
 
+### Changed
+
+- Migrated Pi packages from deprecated `@mariozechner` scope and local `file:` links to `@earendil-works` packages.
+
 ## [1.0.0] - 2026-03-15
 
 ### Added
