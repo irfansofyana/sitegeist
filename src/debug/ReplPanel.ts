@@ -1,6 +1,6 @@
+import { ArtifactsPanel, ArtifactsRuntimeProvider, createJavaScriptReplTool } from "@earendil-works/pi-web-ui";
 import { Button } from "@mariozechner/mini-lit/dist/Button.js";
 import { icon } from "@mariozechner/mini-lit/dist/icons.js";
-import { ArtifactsPanel, ArtifactsRuntimeProvider, createJavaScriptReplTool } from "@mariozechner/pi-web-ui";
 import { html, LitElement } from "lit";
 import { customElement, state } from "lit/decorators.js";
 import { Play, Square } from "lucide";
@@ -45,7 +45,8 @@ export class ReplPanel extends LitElement {
 				{ code: this.code, title: "Debug REPL" },
 				this.abortController.signal,
 			);
-			this.output = result.content.find((c) => c.type === "text")?.text || "No output";
+			const textContent = result.content.find((c) => c.type === "text");
+			this.output = textContent?.type === "text" ? textContent.text : "No output";
 		} catch (error: any) {
 			if (error.message === "Execution aborted") {
 				this.output = "Execution aborted by user";

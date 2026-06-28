@@ -8,8 +8,8 @@ import {
 	type AgentMessage,
 	type AgentState,
 	type AgentTool,
-} from "@mariozechner/pi-agent-core";
-import { getModel, getModels, type Model } from "@mariozechner/pi-ai";
+} from "@earendil-works/pi-agent-core";
+import { getModel, getModels, type Model } from "@earendil-works/pi-ai";
 import {
 	ChatPanel,
 	createExtractDocumentTool,
@@ -19,7 +19,7 @@ import {
 	// PersistentStorageDialog,
 	setAppStorage,
 	setShowJsonMode,
-} from "@mariozechner/pi-web-ui";
+} from "@earendil-works/pi-web-ui";
 import { html, render } from "lit";
 import { History, Plus, Settings } from "lucide";
 import { AboutTab } from "./dialogs/AboutTab.js";
@@ -146,7 +146,7 @@ async function selectDefaultModelForAvailableProvider() {
 
 	const customModel = await getFirstOpenAICompatibleModel();
 	if (customModel) {
-		agent.setModel(customModel);
+		agent.state.model = customModel;
 		await storage.settings.set("lastUsedModel", customModel);
 		await updateAuthLabel();
 		renderApp();
@@ -162,7 +162,7 @@ async function selectDefaultModelForAvailableProvider() {
 		if (modelId) {
 			const model = getModel(provider as any, modelId);
 			if (model) {
-				agent.setModel(model);
+				agent.state.model = model;
 				await storage.settings.set("lastUsedModel", model);
 				await updateAuthLabel();
 				renderApp();
@@ -175,7 +175,7 @@ async function selectDefaultModelForAvailableProvider() {
 	for (const provider of providers) {
 		const models = getModels(provider as any);
 		if (models.length > 0) {
-			agent.setModel(models[0]);
+			agent.state.model = models[0];
 			await storage.settings.set("lastUsedModel", models[0]);
 			await updateAuthLabel();
 			renderApp();
@@ -257,8 +257,7 @@ const generateTitle = (messages: AgentMessage[]): string => {
 	if (typeof content === "string") {
 		text = content;
 	} else {
-		const textBlocks = content.filter((c) => c.type === "text");
-		text = textBlocks.map((c) => c.text || "").join(" ");
+		text = content.map((c) => (c.type === "text" ? c.text : "")).join(" ");
 	}
 
 	text = text.trim();
@@ -319,15 +318,12 @@ const saveSession = async () => {
 				const text =
 					typeof msg.content === "string"
 						? msg.content
-						: msg.content
-								.filter((c) => c.type === "text")
-								.map((c) => c.text)
-								.join("\n") || "";
+						: msg.content.map((c) => (c.type === "text" ? c.text : "")).join("\n") || "";
 				preview += `${text}\n`;
 			} else if (msg.role === "assistant") {
 				const text = msg.content
-					.filter((c) => c.type === "text" || c.type === "thinking")
-					.map((c) => (c.type === "text" ? c.text : c.thinking))
+					.map((c) => (c.type === "text" ? c.text : c.type === "thinking" ? c.thinking : ""))
+					.filter(Boolean)
 					.join("\n");
 				preview += `${text}\n`;
 			}
@@ -531,7 +527,7 @@ const createAgent = async (initialState?: Partial<AgentState>, shouldSave = true
 			// Only add if URL changed
 			if (!lastUrl || lastUrl !== tab.url) {
 				const navMessage = await createNavigationMessage(tab.url, tab.title || "Untitled", tab.favIconUrl, tab.id);
-				agent.appendMessage(navMessage);
+				agent.state.messages = [...agent.state.messages, navMessage];
 			}
 		},
 		onCostClick: () => {
@@ -569,19 +565,19 @@ const createAgent = async (initialState?: Partial<AgentState>, shouldSave = true
 			const extractImageTool = new ExtractImageTool();
 			extractImageTool.windowId = currentWindowId;
 
-			const tools: AgentTool<any, any>[] = [
+			const tools = [
 				navigateTool,
 				selectElementTool,
 				replTool,
 				skillTool,
 				extractDocumentTool,
 				extractImageTool,
-			];
+			] as AgentTool<any, any>[];
 
 			// Conditionally add debugger tool if enabled
 			if (debuggerModeEnabled) {
 				const debuggerTool = new DebuggerTool();
-				tools.push(debuggerTool);
+				tools.push(debuggerTool as AgentTool<any, any>);
 			}
 
 			return tools;
@@ -1021,7 +1017,7 @@ async function initApp() {
 				await createAgent();
 				if (agent) {
 					const welcomeMessage = createWelcomeMessage(tutorials);
-					agent.appendMessage(welcomeMessage);
+					agent.state.messages = [...agent.state.messages, welcomeMessage];
 				}
 				renderApp();
 				return;
@@ -1054,7 +1050,7 @@ async function initApp() {
 	// Add welcome message for new sessions
 	if (agent) {
 		const welcomeMessage = createWelcomeMessage(tutorials);
-		agent.appendMessage(welcomeMessage);
+		agent.state.messages = [...agent.state.messages, welcomeMessage];
 	}
 
 	renderApp();

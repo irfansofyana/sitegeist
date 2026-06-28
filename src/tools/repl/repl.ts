@@ -1,6 +1,5 @@
-import { i18n } from "@mariozechner/mini-lit";
-import type { AgentTool } from "@mariozechner/pi-agent-core";
-import type { ToolResultMessage } from "@mariozechner/pi-ai";
+import type { AgentTool } from "@earendil-works/pi-agent-core";
+import type { ToolResultMessage } from "@earendil-works/pi-ai";
 import {
 	type Attachment,
 	registerToolRenderer,
@@ -12,11 +11,12 @@ import {
 	type SandboxRuntimeProvider,
 	type ToolRenderer,
 	type ToolRenderResult,
-} from "@mariozechner/pi-web-ui";
-import { type Static, Type } from "@sinclair/typebox";
+} from "@earendil-works/pi-web-ui";
+import { i18n } from "@mariozechner/mini-lit";
 import { html } from "lit";
 import { createRef, ref } from "lit/directives/ref.js";
 import { Code } from "lucide";
+import { type Static, Type } from "typebox";
 import { REPL_TOOL_DESCRIPTION } from "../../prompts/prompts.js";
 import "../../utils/i18n-extension.js";
 import { injectOverlayForActiveTab, removeOverlayForActiveTab } from "./overlay-inject.js";
@@ -270,7 +270,8 @@ export const javascriptReplRenderer: ToolRenderer<ReplParams, ReplResult> = {
 
 		// With result: show params + result
 		if (result && params) {
-			const output = result.content.find((c) => c.type === "text")?.text || "";
+			const textContent = result.content.find((c) => c.type === "text");
+			const output = textContent?.type === "text" ? textContent.text : "";
 			const files = result.details?.files || [];
 
 			const attachments: Attachment[] = files.map((f, i) => {

@@ -1,9 +1,6 @@
 import "@mariozechner/mini-lit/dist/MarkdownBlock.js";
-import { icon } from "@mariozechner/mini-lit";
-import { Diff } from "@mariozechner/mini-lit/dist/Diff.js";
-import i18n from "@mariozechner/mini-lit/dist/i18n.js";
-import type { AgentTool } from "@mariozechner/pi-agent-core";
-import { StringEnum, type ToolResultMessage } from "@mariozechner/pi-ai";
+import type { AgentTool } from "@earendil-works/pi-agent-core";
+import { StringEnum, type ToolResultMessage } from "@earendil-works/pi-ai";
 import {
 	registerToolRenderer,
 	renderCollapsibleHeader,
@@ -11,11 +8,14 @@ import {
 	SandboxIframe,
 	type ToolRenderer,
 	type ToolRenderResult,
-} from "@mariozechner/pi-web-ui";
-import { type Static, Type } from "@sinclair/typebox";
+} from "@earendil-works/pi-web-ui";
+import { icon } from "@mariozechner/mini-lit";
+import { Diff } from "@mariozechner/mini-lit/dist/Diff.js";
+import i18n from "@mariozechner/mini-lit/dist/i18n.js";
 import { html, type TemplateResult } from "lit";
 import { createRef, ref } from "lit/directives/ref.js";
 import { Sparkles } from "lucide";
+import { type Static, Type } from "typebox";
 import { DomainPill } from "../components/DomainPill.js";
 import { SkillPill } from "../components/SkillPill.js";
 import { SKILL_TOOL_DESCRIPTION } from "../prompts/prompts.js";
@@ -24,6 +24,9 @@ import type { Skill } from "../storage/stores/skills-store.js";
 import { defaultSkills } from "./default-skills.js";
 
 const getSkills = () => getSitegeistStorage().skills;
+
+const getFirstText = (content: Array<{ type: string; text?: string }>) =>
+	content.find((c) => c.type === "text")?.text || "";
 
 // Initialize default skills on first run
 export async function initializeDefaultSkills() {
@@ -567,7 +570,7 @@ export const skillRenderer: ToolRenderer<SkillParams, SkillResultDetails> = {
 						<div ${ref(contentRef)} class="overflow-hidden transition-all duration-200 ease-in-out max-h-0 space-y-3">
 							${renderSkillFields(params.data, true)}
 							<div class="w-full px-3 py-2 text-sm text-destructive bg-destructive/10 border border-destructive rounded">
-								${result.content.find((c) => c.type === "text")?.text || ""}
+								${getFirstText(result.content)}
 							</div>
 						</div>
 					</div>
@@ -580,7 +583,7 @@ export const skillRenderer: ToolRenderer<SkillParams, SkillResultDetails> = {
 				content: html`
 				<div class="space-y-3">
 					${renderHeader(state, Sparkles, headerText)}
-					<div class="text-sm text-destructive">${result.content.find((c) => c.type === "text")?.text || ""}</div>
+					<div class="text-sm text-destructive">${getFirstText(result.content)}</div>
 				</div>
 			`,
 				isCustom: false,
@@ -775,7 +778,7 @@ export const skillRenderer: ToolRenderer<SkillParams, SkillResultDetails> = {
 
 				default:
 					return {
-						content: renderHeader(state, Sparkles, result.content.find((c) => c.type === "text")?.text || ""),
+						content: renderHeader(state, Sparkles, getFirstText(result.content)),
 						isCustom: false,
 					};
 			}
